@@ -20,6 +20,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -28,7 +29,13 @@ import android.os.RemoteException;
 import android.util.Log;
 
 import com.carteryagemann.AICS.AICSFile;
+import com.carteryagemann.AICS.ActivityIntentHeader;
+import com.carteryagemann.AICS.BroadcastIntentHeader;
+import com.carteryagemann.AICS.IntentData;
+import com.carteryagemann.AICS.ServiceIntentHeader;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 
 public class LoggingService extends Service {
@@ -80,7 +87,7 @@ public class LoggingService extends Service {
                     sendCount(msg);
                     break;
                 case SAVE_LOG:
-                    saveLog(msg);
+                    saveLog();
                     break;
             }
         }
@@ -119,18 +126,82 @@ public class LoggingService extends Service {
             // Log intent
             Bundle data = msg.getData();
             if (data != null && LOGGING && LOG != null) {
+                Intent intent = data.getParcelable("intent");
+                if (intent == null) {
+                    Log.w(TAG, "Failed to log data, no intent!");
+                    return;
+                }
                 switch (data.getInt("intentType", -1)) {
                     case TYPE_ACTIVITY:
-                        //TODO Handle activity intents here!
-                        LOG_COUNT++;
+                        try {
+                            String receiver = null;
+                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            ActivityIntentHeader head = (ActivityIntentHeader)
+                                    new ActivityIntentHeader()
+                                    .setCallerComponent(data.getString("resultWho"))
+                                    .setReceiverComponent(receiver)
+                                    .setRequestCode(data.getInt("requestCode"))
+                                    .setStartFlags(data.getInt("startFlags"))
+                                    .setUserID(data.getInt("userId"))
+                                    .setTimestamp((int) System.currentTimeMillis() / 1000);
+                            IntentData intentData = new IntentData()
+                                    .setAction(intent.getAction())
+                                    .setData(intent.getDataString())
+                                    .setFlags(intent.getFlags())
+                                    .setType(intent.getType());
+                            head.setIntentData(intentData);
+                            LOG.appendIntent(head);
+                            LOG_COUNT++;
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to log activity intent: " + e.toString());
+                        }
                         break;
                     case TYPE_BROADCAST:
-                        //TODO Handle broadcast intents here!
-                        LOG_COUNT++;
+                        try {
+                            String receiver = null;
+                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            BroadcastIntentHeader head = (BroadcastIntentHeader)
+                                    new BroadcastIntentHeader()
+                                            .setReceiverComponent(receiver)
+                                            .setRequestCode(data.getInt("requestCode"))
+                                            .setRequiredPermission(data.getString("requiredPermission"))
+                                            .setUserID(data.getInt("userId"))
+                                            .setTimestamp((int) System.currentTimeMillis() / 1000);
+                            IntentData intentData = new IntentData()
+                                    .setAction(intent.getAction())
+                                    .setData(intent.getDataString())
+                                    .setFlags(intent.getFlags())
+                                    .setType(intent.getType());
+                            head.setIntentData(intentData);
+                            LOG.appendIntent(head);
+                            LOG_COUNT++;
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to log broadcast intent: " + e.toString());
+                        }
                         break;
                     case TYPE_SERVICE:
-                        //TODO Handle service intents here!
-                        LOG_COUNT++;
+                        try {
+                            String receiver = null;
+                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            ServiceIntentHeader head = (ServiceIntentHeader)
+                                    new ServiceIntentHeader()
+                                            .setAction(data.getString("IFW_SERVICE_ACTION"))
+                                            .setCallerComponent(data.getString("callingPackage"))
+                                            .setFlags(data.getInt("flags"))
+                                            .setReceiverComponent(receiver)
+                                            .setUserID(data.getInt("userId"))
+                                            .setTimestamp((int) System.currentTimeMillis() / 1000);
+                            IntentData intentData = new IntentData()
+                                    .setAction(intent.getAction())
+                                    .setData(intent.getDataString())
+                                    .setFlags(intent.getFlags())
+                                    .setType(intent.getType());
+                            head.setIntentData(intentData);
+                            LOG.appendIntent(head);
+                            LOG_COUNT++;
+                        } catch (Exception e) {
+                            Log.w(TAG, "Failed to log service intent: " + e.toString());
+                        }
                         break;
                 }
             }
@@ -145,11 +216,22 @@ public class LoggingService extends Service {
             }
         }
 
-        private void saveLog(Message msg) {
+        private void saveLog() {
             Log.v(TAG, "Saving log.");
             if (LOG != null) {
-                ByteBuffer output = LOG.toByteBuffer();
-                //TODO Write buffer to file.
+                try {
+                    ByteBuffer output = LOG.toByteBuffer();
+                    File newFolder = new File(Environment.getExternalStorageDirectory(), "AICS");
+                    if (!newFolder.exists()) newFolder.mkdir();
+                    File file = new File(newFolder, System.currentTimeMillis() + ".aics");
+                    file.createNewFile();
+                    FileOutputStream fos = new FileOutputStream(file);
+                    fos.write(output.array());
+                    fos.flush();
+                    fos.close();
+                } catch (Exception e) {
+                    Log.e(TAG, "Failed to save log! " + e.toString());
+                }
             }
         }
 

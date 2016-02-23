@@ -30,6 +30,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class ControlPanel extends AppCompatActivity {
 
@@ -91,7 +92,14 @@ public class ControlPanel extends AppCompatActivity {
     }
 
     public void saveLog(View view) {
-        //TODO
+        if (mLoggerService == null) return;
+        try {
+            Message request = Message.obtain(null, LoggingService.SAVE_LOG);
+            mLoggerService.send(request);
+            Toast.makeText(this, "Log saved.", Toast.LENGTH_SHORT).show();
+        } catch (RemoteException e) {
+            Log.w(LoggingService.TAG, "Failed to send message to logging service.");
+        }
     }
 
     private class StatusHandler extends Handler {
