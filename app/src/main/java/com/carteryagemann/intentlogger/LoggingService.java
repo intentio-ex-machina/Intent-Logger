@@ -18,6 +18,7 @@ package com.carteryagemann.intentlogger;
 
 import android.app.Service;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Environment;
@@ -25,6 +26,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.Parcel;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -55,6 +57,7 @@ public class LoggingService extends Service {
     private final static int TYPE_SERVICE   = 2;
 
     private int UID;
+    private static PackageManager PM;
 
     private static boolean LOGGING = false;
     private static AICSFile LOG = null;
@@ -64,6 +67,7 @@ public class LoggingService extends Service {
     public void onCreate() {
         super.onCreate();
         UID = getApplicationInfo().uid;
+        PM = getPackageManager();
     }
 
     /**
@@ -135,20 +139,59 @@ public class LoggingService extends Service {
                     case TYPE_ACTIVITY:
                         try {
                             String receiver = null;
-                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            int receiverUid = 0;
+                            if (intent.getComponent() != null) {
+                                receiver = intent.getComponent().toShortString();
+                                if (PM != null) {
+                                    receiverUid = PM.getApplicationInfo(intent.getComponent()
+                                            .getPackageName(), 0).uid;
+                                }
+                            }
+                            byte[] clipData = {};
+                            if (intent.getClipData() != null) {
+                                try {
+                                    Parcel clipDataParcel = Parcel.obtain();
+                                    intent.getClipData().writeToParcel(clipDataParcel, 0);
+                                    clipData = clipDataParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping activity clip data.");
+                                }
+                            }
+                            byte[] extras = {};
+                            if (intent.getExtras() != null) {
+                                try {
+                                    Parcel extrasParcel = Parcel.obtain();
+                                    intent.getExtras().writeToParcel(extrasParcel, 0);
+                                    extras = extrasParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping activity extras.");
+                                }
+                            }
+                            String categories = "";
+                            if (intent.getCategories() != null) {
+                                for (String category : (String[]) intent.getCategories().toArray())
+                                    categories += category + ";";
+                            }
                             ActivityIntentHeader head = (ActivityIntentHeader)
                                     new ActivityIntentHeader()
-                                    .setCallerComponent(data.getString("resultWho"))
+                                    .setCallerComponent(data.getString("callingPackage"))
                                     .setReceiverComponent(receiver)
                                     .setRequestCode(data.getInt("requestCode"))
                                     .setStartFlags(data.getInt("startFlags"))
                                     .setUserID(data.getInt("userId"))
-                                    .setTimestamp((int) System.currentTimeMillis() / 1000);
+                                    .setTimestamp((int) System.currentTimeMillis() / 1000)
+                                    .setOffset((short) (System.currentTimeMillis() % 1000))
+                                    .setCallerUID(data.getInt("callerUid", 0))
+                                    .setCallerPID(data.getInt("callerPid", 0))
+                                    .setReceiverUID(receiverUid);
                             IntentData intentData = new IntentData()
                                     .setAction(intent.getAction())
                                     .setData(intent.getDataString())
                                     .setFlags(intent.getFlags())
-                                    .setType(intent.getType());
+                                    .setType(intent.getType())
+                                    .setCategory(categories)
+                                    .setClipData(clipData)
+                                    .setExtras(extras);
                             head.setIntentData(intentData);
                             LOG.appendIntent(head);
                             LOG_COUNT++;
@@ -159,19 +202,56 @@ public class LoggingService extends Service {
                     case TYPE_BROADCAST:
                         try {
                             String receiver = null;
-                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            int receiverUid = 0;
+                            if (intent.getComponent() != null) {
+                                receiver = intent.getComponent().toShortString();
+                                if (PM != null) {
+                                    receiverUid = PM.getApplicationInfo(intent.getComponent()
+                                            .getPackageName(), 0).uid;
+                                }
+                            }
+                            byte[] clipData = {};
+                            if (intent.getClipData() != null) {
+                                try {
+                                    Parcel clipDataParcel = Parcel.obtain();
+                                    intent.getClipData().writeToParcel(clipDataParcel, 0);
+                                    clipData = clipDataParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping broadcast clip data.");
+                                }
+                            }
+                            byte[] extras = {};
+                            if (intent.getExtras() != null) {
+                                try {
+                                    Parcel extrasParcel = Parcel.obtain();
+                                    intent.getExtras().writeToParcel(extrasParcel, 0);
+                                    extras = extrasParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping broadcast extras.");
+                                }
+                            }
+                            String categories = "";
+                            if (intent.getCategories() != null) {
+                                for (String category : (String[]) intent.getCategories().toArray())
+                                    categories += category + ";";
+                            }
                             BroadcastIntentHeader head = (BroadcastIntentHeader)
                                     new BroadcastIntentHeader()
                                             .setReceiverComponent(receiver)
                                             .setRequestCode(data.getInt("requestCode"))
                                             .setRequiredPermission(data.getString("requiredPermission"))
                                             .setUserID(data.getInt("userId"))
-                                            .setTimestamp((int) System.currentTimeMillis() / 1000);
+                                            .setTimestamp((int) System.currentTimeMillis() / 1000)
+                                            .setOffset((short) (System.currentTimeMillis() % 1000))
+                                            .setReceiverUID(receiverUid);
                             IntentData intentData = new IntentData()
                                     .setAction(intent.getAction())
                                     .setData(intent.getDataString())
                                     .setFlags(intent.getFlags())
-                                    .setType(intent.getType());
+                                    .setType(intent.getType())
+                                    .setCategory(categories)
+                                    .setClipData(clipData)
+                                    .setExtras(extras);
                             head.setIntentData(intentData);
                             LOG.appendIntent(head);
                             LOG_COUNT++;
@@ -182,7 +262,39 @@ public class LoggingService extends Service {
                     case TYPE_SERVICE:
                         try {
                             String receiver = null;
-                            if (intent.getComponent() != null) receiver = intent.getComponent().toShortString();
+                            int receiverUid = 0;
+                            if (intent.getComponent() != null) {
+                                receiver = intent.getComponent().toShortString();
+                                if (PM != null) {
+                                    receiverUid = PM.getApplicationInfo(intent.getComponent()
+                                            .getPackageName(), 0).uid;
+                                }
+                            }
+                            byte[] clipData = {};
+                            if (intent.getClipData() != null) {
+                                try {
+                                    Parcel clipDataParcel = Parcel.obtain();
+                                    intent.getClipData().writeToParcel(clipDataParcel, 0);
+                                    clipData = clipDataParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping service clip data.");
+                                }
+                            }
+                            byte[] extras = {};
+                            if (intent.getExtras() != null) {
+                                try {
+                                    Parcel extrasParcel = Parcel.obtain();
+                                    intent.getExtras().writeToParcel(extrasParcel, 0);
+                                    extras = extrasParcel.marshall();
+                                } catch (Exception e) {
+                                    Log.w(TAG, "Skipping service extras.");
+                                }
+                            }
+                            String categories = "";
+                            if (intent.getCategories() != null) {
+                                for (String category : (String[]) intent.getCategories().toArray())
+                                    categories += category + ";";
+                            }
                             ServiceIntentHeader head = (ServiceIntentHeader)
                                     new ServiceIntentHeader()
                                             .setAction(data.getString("IFW_SERVICE_ACTION"))
@@ -190,12 +302,19 @@ public class LoggingService extends Service {
                                             .setFlags(data.getInt("flags"))
                                             .setReceiverComponent(receiver)
                                             .setUserID(data.getInt("userId"))
-                                            .setTimestamp((int) System.currentTimeMillis() / 1000);
+                                            .setTimestamp((int) System.currentTimeMillis() / 1000)
+                                            .setOffset((short) (System.currentTimeMillis() % 1000))
+                                            .setCallerUID(data.getInt("callerUid", 0))
+                                            .setCallerPID(data.getInt("callerPid", 0))
+                                            .setReceiverUID(receiverUid);
                             IntentData intentData = new IntentData()
                                     .setAction(intent.getAction())
                                     .setData(intent.getDataString())
                                     .setFlags(intent.getFlags())
-                                    .setType(intent.getType());
+                                    .setType(intent.getType())
+                                    .setCategory(categories)
+                                    .setClipData(clipData)
+                                    .setExtras(extras);
                             head.setIntentData(intentData);
                             LOG.appendIntent(head);
                             LOG_COUNT++;

@@ -11,7 +11,9 @@ Done
 ----
 
 * Timestamp
+* Millisecond Offset
 * Receiver Component
+* Receiver UID
 * UserID
 * Request Code
 * Start Flags
@@ -22,26 +24,23 @@ Done
 * Intent Data
 * Intent Flags
 * Intent Type
+* Intent Category
+* Intent ClipData
+* Intent Extras
 
 In Progress
 -----------
 
 * Caller Component (package only, activity & service only)
+* Caller UID (activity & service only)
+* Caller PID (activity & service only)
 
 Missing
 -------
 
-* Millisecond Offset
-* Caller UID
-* Caller PID
-* Receiver UID
 * Receiver PID
 * Options
 * Broadcast Flags
-* Intent Category
-* Intent ClipData
-* Intent Extras
-
 
 License
 -------
