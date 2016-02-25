@@ -39,6 +39,7 @@ import com.carteryagemann.AICS.ServiceIntentHeader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
+import java.util.Iterator;
 
 public class LoggingService extends Service {
 
@@ -169,8 +170,9 @@ public class LoggingService extends Service {
                             }
                             String categories = "";
                             if (intent.getCategories() != null) {
-                                for (String category : (String[]) intent.getCategories().toArray())
-                                    categories += category + ";";
+                                Iterator<String> iterator = intent.getCategories().iterator();
+                                while (iterator.hasNext())
+                                    categories += iterator.next() + ";";
                             }
                             ActivityIntentHeader head = (ActivityIntentHeader)
                                     new ActivityIntentHeader()
@@ -232,8 +234,9 @@ public class LoggingService extends Service {
                             }
                             String categories = "";
                             if (intent.getCategories() != null) {
-                                for (String category : (String[]) intent.getCategories().toArray())
-                                    categories += category + ";";
+                                Iterator<String> iterator = intent.getCategories().iterator();
+                                while (iterator.hasNext())
+                                    categories += iterator.next() + ";";
                             }
                             BroadcastIntentHeader head = (BroadcastIntentHeader)
                                     new BroadcastIntentHeader()
@@ -292,8 +295,9 @@ public class LoggingService extends Service {
                             }
                             String categories = "";
                             if (intent.getCategories() != null) {
-                                for (String category : (String[]) intent.getCategories().toArray())
-                                    categories += category + ";";
+                                Iterator<String> iterator = intent.getCategories().iterator();
+                                while (iterator.hasNext())
+                                    categories += iterator.next() + ";";
                             }
                             ServiceIntentHeader head = (ServiceIntentHeader)
                                     new ServiceIntentHeader()
